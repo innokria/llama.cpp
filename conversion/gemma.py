@@ -616,6 +616,7 @@ class Gemma3NModel(Gemma3Model):
 
 @ModelBase.register("Gemma4ForConditionalGeneration", "Gemma4ForCausalLM")
 class Gemma4Model(Gemma3Model):
+    print("welcome to gemma4 entry point============================================================================")
     model_arch = gguf.MODEL_ARCH.GEMMA4
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
