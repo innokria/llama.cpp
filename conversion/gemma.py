@@ -674,25 +674,14 @@ class Gemma4Model(Gemma3Model):
        
 
     original_getattribute = hetero.ConfigurationMixin.__getattribute__
+    def patched_getattribute(config_self, key): if key == "head_dim": # Bypass the heterogeneity guard and return the global value. try: return object.__getattribute__(config_self, key) except AttributeError: pass return original_getattribute(config_self, key)
 
-    def patched_getattribute(self, key):
-         if key == "head_dim":
-              object.__setattr__(
-              self,
-              "allow_global_per_layer_attribute_access",
-               True,
-             )
-        return original_getattribute(self, key)
-
-    hetero.ConfigurationMixin.__getattribute__ = patched_getattribute
+   hetero.ConfigurationMixin.__getattribute__ = patched_getattribute try: print("Gemma 4 tokenizer compatibility hack enabled") vocab = gguf.LlamaHfVocab(self.dir_model) finally: hetero.ConfigurationMixin.__getattribute__ = original_getattribute
 
    
 
-    try:
-        print("welcome to world of matrix ++++++++++++++++++++++++++++++++")
-        vocab = gguf.LlamaHfVocab(self.dir_model)
-    finally:
-        hetero.ConfigurationMixin.__getattribute__ = original_getattribute
+   
+
 
     tokens = []
     scores = []
