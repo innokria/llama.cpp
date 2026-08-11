@@ -671,18 +671,22 @@ class Gemma4Model(Gemma3Model):
     # triggers a global head_dim access during config validation.
     import transformers.integrations.heterogeneity.configuration_utils as hetero
        
+       
 
     original_getattribute = hetero.ConfigurationMixin.__getattribute__
 
     def patched_getattribute(self, key):
-        if key == "head_dim":
-            try:
-                return object.__getattribute__(self, key)
-            except AttributeError:
-                pass
+         if key == "head_dim":
+              object.__setattr__(
+              self,
+              "allow_global_per_layer_attribute_access",
+               True,
+             )
         return original_getattribute(self, key)
 
     hetero.ConfigurationMixin.__getattribute__ = patched_getattribute
+
+   
 
     try:
         print("welcome to world of matrix ++++++++++++++++++++++++++++++++")
