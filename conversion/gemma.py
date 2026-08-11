@@ -19,6 +19,12 @@ class GemmaModel(TextModel):
 
     def set_vocab(self):
         self._set_vocab_sentencepiece()
+        import transformers.integrations.heterogeneity.configuration_utils as hetero
+
+        print("🔥 GEMMA4 set_vocab PATCH ACTIVE", flush=True)
+
+        # Allow global access to per-layer attributes such as head_dim.
+        hetero.ConfigurationMixin.allow_global_per_layer_attribute_access = True
 
         # TODO: these special tokens should be exported only for the CodeGemma family
         special_vocab = gguf.SpecialVocab(self.dir_model, load_merges=False,
