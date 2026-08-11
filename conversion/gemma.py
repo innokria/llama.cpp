@@ -617,6 +617,49 @@ class Gemma3NModel(Gemma3Model):
 @ModelBase.register("Gemma4ForConditionalGeneration", "Gemma4ForCausalLM")
 class Gemma4Model(Gemma3Model):
     model_arch = gguf.MODEL_ARCH.GEMMA4
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        if "global_head_dim" not in self.hparams:
+            head_dim = self.hparams.get("head_dim", 256)
+            per_layer_config = self.hparams.get(
+                "per_layer_config"
+            )
+
+            global_head_dim = head_dim
+
+            if per_layer_config is not None:
+                for i in range(self.block_count):
+                    try:
+                        layer_config = per_layer_config[i]
+                    except Exception:
+                        try:
+                            layer_config = per_layer_config[
+                                f"{i:02d}"
+                            ]
+                        except Exception:
+                            continue
+
+                    layer_head_dim = getattr(
+                        layer_config,
+                        "head_dim",
+                        None,
+                    )
+
+                    if layer_head_dim is not None:
+                        global_head_dim = max(
+                            global_head_dim,
+                            int(layer_head_dim),
+                        )
+
+            self.hparams["global_head_dim"] = (
+                global_head_dim
+            )
+
+            logger.info(
+                f"Gemma4: head_dim={head_dim}, "
+                f"global_head_dim={global_head_dim}"
+            )
 
     def norm_shift(self, name: str) -> float:
         del name # unused
