@@ -584,6 +584,7 @@ class LlamaHfVocab(Vocab):
             base_path,
             cache_dir=base_path,
             local_files_only=True,
+            allow_global_per_layer_attribute_access=True,
         )
         assert self.tokenizer.is_fast  # assume tokenizer.json is used  # ty: ignore[unresolved-attribute]
 
