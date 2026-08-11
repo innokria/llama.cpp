@@ -665,35 +665,70 @@ class Gemma4Model(Gemma3Model):
         del name # unused
         return 0.0
 
-    def set_vocab(self):
+   def set_vocab(self):
+    # Gemma 4 / Transformers 5.x compatibility hack.
+    # Gemma 4 has per-layer head_dim, but tokenizer initialization
+    # triggers a global head_dim access during config validation.
+    import transformers.integrations.heterogeneity.configuration_utils as hetero
+       
+
+    original_getattribute = hetero.ConfigurationMixin.__getattribute__
+
+    def patched_getattribute(self, key):
+        if key == "head_dim":
+            try:
+                return object.__getattribute__(self, key)
+            except AttributeError:
+                pass
+        return original_getattribute(self, key)
+
+    hetero.ConfigurationMixin.__getattribute__ = patched_getattribute
+
+    try:
+        print("welcome to world of matrix ++++++++++++++++++++++++++++++++")
         vocab = gguf.LlamaHfVocab(self.dir_model)
-        tokens = []
-        scores = []
-        toktypes = []
-        visible_tokens = {"<|channel>", "<channel|>", "<|tool_call>", "<tool_call|>", "<|tool_response>", "<tool_response|>", "<|\"|>"}
+    finally:
+        hetero.ConfigurationMixin.__getattribute__ = original_getattribute
 
-        for text, score, toktype in vocab.all_tokens():
-            tokens.append(text)
-            scores.append(score)
-            text_str = text.decode()
-            if text_str in visible_tokens:
-                # always render these tokens, so that the chat parser can read them
-                toktypes.append(gguf.TokenType.USER_DEFINED)
-                logger.info(f"Token '{text_str}' is set to USER_DEFINED")
-            else:
-                toktypes.append(toktype)
+    tokens = []
+    scores = []
+    toktypes = []
+    visible_tokens = {
+        "<|channel>",
+        "<channel|>",
+        "<|tool_call>",
+        "<tool_call|>",
+        "<|tool_response>",
+        "<tool_response|>",
+        '<|"|>',
+    }
 
-        assert len(tokens) == vocab.vocab_size
+    for text, score, toktype in vocab.all_tokens():
+        tokens.append(text)
+        scores.append(score)
+        text_str = text.decode()
 
-        self.gguf_writer.add_tokenizer_model("gemma4")
-        self.gguf_writer.add_token_list(tokens)
-        self.gguf_writer.add_token_scores(scores)
-        self.gguf_writer.add_token_types(toktypes)
+        if text_str in visible_tokens:
+            toktypes.append(gguf.TokenType.USER_DEFINED)
+            logger.info(f"Token '{text_str}' is set to USER_DEFINED")
+        else:
+            toktypes.append(toktype)
 
-        special_vocab = gguf.SpecialVocab(self.dir_model, load_merges=True)
-        special_vocab.add_to_gguf(self.gguf_writer)
-        self.gguf_writer.add_add_space_prefix(False)
-        self.gguf_writer.add_add_bos_token(True)
+    assert len(tokens) == vocab.vocab_size
+
+    self.gguf_writer.add_tokenizer_model("gemma4")
+    self.gguf_writer.add_token_list(tokens)
+    self.gguf_writer.add_token_scores(scores)
+    self.gguf_writer.add_token_types(toktypes)
+
+    special_vocab = gguf.SpecialVocab(
+        self.dir_model,
+        load_merges=True,
+    )
+    special_vocab.add_to_gguf(self.gguf_writer)
+
+    self.gguf_writer.add_add_space_prefix(False)
+    self.gguf_writer.add_add_bos_token(True)
 
     def set_gguf_parameters(self):
         super().set_gguf_parameters()
